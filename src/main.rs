@@ -54,8 +54,8 @@ fn main() {
     };
     let compiled_regexes: Vec<_> = regexes.iter().map(|r| Regex::new(r).unwrap()).collect();
 
-    let pubkeys = Arc::new(Mutex::new(vec![0xFF; 32 * args.threads]));
-    let new_seeds = Arc::new(Mutex::new(vec![0; 32 * args.threads]));
+    let pubkeys = Arc::new(Mutex::new(vec![0; 32 * args.threads]));
+    let next_seeds = Arc::new(Mutex::new(vec![0; 32 * args.threads]));
     let current_seeds = Arc::new(Mutex::new(vec![0; 32 * args.threads]));
 
     let mut gpu = gpu::Gpu::new(gpu::GpuOptions {
@@ -67,20 +67,24 @@ fn main() {
     })
     .unwrap();
 
-    let (gpu_tx, gpu_rx) = mpsc::channel::<()>();
-    let (cpu_tx, cpu_rx) = mpsc::channel::<()>();
+    let (start_write_compute_tx, start_write_compute_rx) = mpsc::channel::<()>();
+    let (seeds_wrote_tx, seeds_wrote_rx) = mpsc::channel::<()>();
+    let (start_keys_read_tx, start_keys_read_rx) = mpsc::channel::<()>();
+    let (keys_read_tx, pubkeys_read_rx) = mpsc::channel::<()>();
+
     let _gpu_thread = {
-        let seeds = current_seeds.clone();
+        let seeds = next_seeds.clone();
         let pubkeys = pubkeys.clone();
         thread::spawn(move || loop {
-            gpu_rx.recv().unwrap();
+            keys_read_tx.send(()).unwrap();
+            start_write_compute_rx.recv().unwrap();
 
             gpu.write_seeds(&seeds.lock().unwrap()).unwrap();
-            cpu_tx.send(()).unwrap();
+            seeds_wrote_tx.send(()).unwrap();
 
             gpu.compute().unwrap();
 
-            gpu_rx.recv().unwrap();
+            start_keys_read_rx.recv().unwrap();
             gpu.read_keys(&mut pubkeys.lock().unwrap()).unwrap();
         })
     };
@@ -90,16 +94,15 @@ fn main() {
         .collect();
     let mut first_run = true;
 
-    gen_random_seeds(&mut new_seeds.lock().unwrap());
+    gen_random_seeds(&mut next_seeds.lock().unwrap());
 
     let mut start = time::Instant::now();
     let mut iters = 0u64;
 
     loop {
-        // start seeds writing and pubkeys computing
-        gpu_tx.send(()).unwrap();
+        start_write_compute_tx.send(()).unwrap();
 
-        // handle already generated pubkeys
+        pubkeys_read_rx.recv().unwrap();
         if !first_run {
             handle_keypairs(
                 &current_seeds.lock().unwrap(),
@@ -108,21 +111,14 @@ fn main() {
                 &compiled_regexes,
                 &max_leading_zeros,
             );
-        } else {
-            first_run = false;
         }
+        start_keys_read_tx.send(()).unwrap();
 
-        // allow gpu to read generated keys
-        gpu_tx.send(()).unwrap();
-
-        // generate new seeds
         gen_random_seeds(&mut current_seeds.lock().unwrap());
-
-        // wait for GPU to finish writing seeds and swap them
-        cpu_rx.recv().unwrap();
+        seeds_wrote_rx.recv().unwrap();
         std::mem::swap(
-            &mut current_seeds.lock().unwrap(),
-            &mut new_seeds.lock().unwrap(),
+            &mut *current_seeds.lock().unwrap(),
+            &mut *next_seeds.lock().unwrap(),
         );
 
         iters += args.threads as u64;
@@ -136,6 +132,9 @@ fn main() {
             );
             start = time::Instant::now();
             iters = 0;
+        }
+        if first_run {
+            first_run = false;
         }
     }
 }

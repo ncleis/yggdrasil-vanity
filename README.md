@@ -20,7 +20,7 @@ cargo run --release -- -r "" -r "^([0-9a-f]*:){2}:" -r "^([0-9a-f]*:){2}[0-9a-f]
 
 ## Benchmarks
 
-- AMD Radeon RX 6800 XT: 24 MH/s
+- AMD Radeon RX 6800 XT: 25 MH/s
 
 
 ## Credits
