@@ -25,11 +25,11 @@ pub fn handle_keypair(
         .zip(max_leading_zeros.iter())
         .zip(regex_sources.iter())
     {
-        if mlz.load(Ordering::Relaxed) < leading_zeros {
+        if mlz.load(Ordering::Relaxed) <= leading_zeros {
             let str_addr = str_addr.get_or_insert_with(|| address_for_pubkey(pk).to_string());
 
             if re.is_match(str_addr)
-                && mlz.fetch_max(leading_zeros, Ordering::SeqCst) < leading_zeros
+                && mlz.fetch_max(leading_zeros, Ordering::SeqCst) <= leading_zeros
             {
                 {
                     let mut fixed_seed = [0; 32];
