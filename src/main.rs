@@ -50,6 +50,15 @@ pub struct Args {
 }
 
 fn main() {
+    let child = std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(main_)
+        .unwrap();
+
+    child.join().unwrap();
+}
+
+fn main_() {
     let args = Args::parse();
 
     let regexes = match args.regexes.clone() {
