@@ -19,10 +19,10 @@
 #define wordSize 8
 
 // Practical sizes of buffers, in words.
-#define inBufferSize ceilDiv(128, wordSize)
+#define inBufferSize ceilDiv(32, wordSize)
 #define outBufferSize ceilDiv(64, wordSize)
-#define pwdBufferSize ceilDiv(32, wordSize)
-#define saltBufferSize ceilDiv(32, wordSize)
+#define pwdBufferSize ceilDiv(0, wordSize)
+#define saltBufferSize ceilDiv(0, wordSize)
 #define ctBufferSize ceilDiv(0, wordSize)
 
 // 
