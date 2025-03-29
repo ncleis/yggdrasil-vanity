@@ -125,10 +125,5 @@ typedef struct {
         printf(end);                            \
     }
 
-    def_printFromWord(__private, printFromWord, "")
-    def_printFromWord(__global, printFromWord_glbl, "")
-    def_printFromWord(__private, printFromWord_n, "\n")
-    def_printFromWord(__global, printFromWord_glbl_n, "\n")
-
 #endif
 #endif

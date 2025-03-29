@@ -49,7 +49,7 @@ lt_modm(bignum256modm_element_t a, bignum256modm_element_t b) {
 
 /* see HAC, Alg. 14.42 Step 4 */
 static void
-reduce256_modm(bignum256modm r) {
+reduce256_modm(__private bignum256modm r) {
 	bignum256modm t;
 	bignum256modm_element_t b = 0, pb, mask;
 
@@ -84,7 +84,7 @@ reduce256_modm(bignum256modm r) {
 	Instead of passing in x, pre-process in to q1 and r1 for efficiency
 */
 static void
-barrett_reduce256_modm(bignum256modm r, const bignum256modm q1, const bignum256modm r1) {
+barrett_reduce256_modm(__private bignum256modm r, __private const bignum256modm q1, __private const bignum256modm r1) {
 	bignum256modm q3, r2;
 	uint64_t c;
 	bignum256modm_element_t f, b, pb;
@@ -153,7 +153,7 @@ barrett_reduce256_modm(bignum256modm r, const bignum256modm q1, const bignum256m
 
 /* addition modulo m */
 static void
-add256_modm(bignum256modm r, const bignum256modm x, const bignum256modm y) {
+add256_modm(__private bignum256modm r, __private const bignum256modm x, __private const bignum256modm y) {
 	bignum256modm_element_t c;
 
 	c  = x[0] + y[0]; r[0] = c & 0x3fffffff; c >>= 30;
@@ -171,7 +171,7 @@ add256_modm(bignum256modm r, const bignum256modm x, const bignum256modm y) {
 
 /* multiplication modulo m */
 static void 
-mul256_modm(bignum256modm r, const bignum256modm x, const bignum256modm y) {
+mul256_modm(__private bignum256modm r, __private const bignum256modm x, __private const bignum256modm y) {
 	bignum256modm r1, q1;
 	uint64_t c;
 	bignum256modm_element_t f;
@@ -217,7 +217,7 @@ mul256_modm(bignum256modm r, const bignum256modm x, const bignum256modm y) {
 }
 
 static void
-expand256_modm(bignum256modm out, const unsigned char *in, size_t len) {
+expand256_modm(__private bignum256modm out, const unsigned char *in, size_t len) {
 	unsigned char work[64];
 	bignum256modm_element_t x[16];
 	bignum256modm q1;
@@ -271,7 +271,7 @@ expand256_modm(bignum256modm out, const unsigned char *in, size_t len) {
 }
 
 static void
-expand_raw256_modm(bignum256modm out, const unsigned char in[32]) {
+expand_raw256_modm(__private bignum256modm out, const unsigned char in[32]) {
 	bignum256modm_element_t x[8];
 
 	x[0] = U8TO32_LE(in +  0);
@@ -295,7 +295,7 @@ expand_raw256_modm(bignum256modm out, const unsigned char in[32]) {
 }
 
 static void
-contract256_window4_modm(signed char r[64], const bignum256modm in) {
+contract256_window4_modm(signed char r[64], __private const bignum256modm in) {
 	char carry;
 	signed char *quads = (__private signed char *) r;
 	bignum256modm_element_t i, j, v;
@@ -331,7 +331,7 @@ contract256_window4_modm(signed char r[64], const bignum256modm in) {
 }
 
 static void
-contract256_slidingwindow_modm(signed char r[256], const bignum256modm s, int windowsize) {
+contract256_slidingwindow_modm(signed char r[256], __private const bignum256modm s, int windowsize) {
 	int i,j,k,b;
 	int m = (1 << (windowsize - 1)) - 1, soplen = 256;
 	bignum256modm_element_t v;
@@ -378,7 +378,7 @@ contract256_slidingwindow_modm(signed char r[256], const bignum256modm s, int wi
 
 /* out = a - b, a must be larger than b */
 static void
-sub256_modm_batch(bignum256modm out, const bignum256modm a, const bignum256modm b, size_t limbsize) {
+sub256_modm_batch(__private bignum256modm out, __private const bignum256modm a, __private const bignum256modm b, size_t limbsize) {
 	size_t i = 0;
 	bignum256modm_element_t carry = 0;
 	switch (limbsize) {
@@ -398,7 +398,7 @@ sub256_modm_batch(bignum256modm out, const bignum256modm a, const bignum256modm 
 
 /* is a < b */
 static int
-lt256_modm_batch(const bignum256modm a, const bignum256modm b, size_t limbsize) {
+lt256_modm_batch(__private const bignum256modm a, __private const bignum256modm b, size_t limbsize) {
 	switch (limbsize) {
 		case 8: if (a[8] > b[8]) return 0; if (a[8] < b[8]) return 1;
 		case 7: if (a[7] > b[7]) return 0; if (a[7] < b[7]) return 1;
@@ -415,7 +415,7 @@ lt256_modm_batch(const bignum256modm a, const bignum256modm b, size_t limbsize) 
 
 /* is a <= b */
 static int
-lte256_modm_batch(const bignum256modm a, const bignum256modm b, size_t limbsize) {
+lte256_modm_batch(__private const bignum256modm a, __private const bignum256modm b, size_t limbsize) {
 	switch (limbsize) {
 		case 8: if (a[8] > b[8]) return 0; if (a[8] < b[8]) return 1;
 		case 7: if (a[7] > b[7]) return 0; if (a[7] < b[7]) return 1;
@@ -433,7 +433,7 @@ lte256_modm_batch(const bignum256modm a, const bignum256modm b, size_t limbsize)
 
 /* is a == 0 */
 static int
-iszero256_modm_batch(const bignum256modm a) {
+iszero256_modm_batch(__private const bignum256modm a) {
 	size_t i;
 	for (i = 0; i < 9; i++)
 		if (a[i])
@@ -443,7 +443,7 @@ iszero256_modm_batch(const bignum256modm a) {
 
 /* is a == 1 */
 static int
-isone256_modm_batch(const bignum256modm a) {
+isone256_modm_batch(__private const bignum256modm a) {
 	size_t i;
 	if (a[0] != 1)
 		return 0;
@@ -455,7 +455,7 @@ isone256_modm_batch(const bignum256modm a) {
 
 /* can a fit in to (at most) 128 bits */
 static int
-isatmost128bits256_modm_batch(const bignum256modm a) {
+isatmost128bits256_modm_batch(__private const bignum256modm a) {
 	uint32_t mask =
 		((a[8]             )  | /*  16 */
 		 (a[7]             )  | /*  46 */
@@ -472,7 +472,7 @@ __constant uint32_t reduce_mask_26 = (1 << 26) - 1;
 
 /* out = in */
 __inline void
-curve25519_copy(bignum25519 out, const bignum25519 in) {
+curve25519_copy(__private bignum25519 out, __private const bignum25519 in) {
 	out[0] = in[0];
 	out[1] = in[1];
 	out[2] = in[2];
@@ -487,7 +487,7 @@ curve25519_copy(bignum25519 out, const bignum25519 in) {
 
 /* out = a + b */
 __inline void
-curve25519_add(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_add(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	out[0] = a[0] + b[0];
 	out[1] = a[1] + b[1];
 	out[2] = a[2] + b[2];
@@ -501,7 +501,7 @@ curve25519_add(bignum25519 out, const bignum25519 a, const bignum25519 b) {
 }
 
 __inline void 
-curve25519_add_after_basic(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_add_after_basic(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t c;
 	out[0] = a[0] + b[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = a[1] + b[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -517,7 +517,7 @@ curve25519_add_after_basic(bignum25519 out, const bignum25519 a, const bignum255
 }
 
 __inline void
-curve25519_add_reduce(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_add_reduce(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t c;
 	out[0] = a[0] + b[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = a[1] + b[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -542,7 +542,7 @@ __constant uint32_t fourP2468   = 0x0ffffffc;
 
 /* out = a - b */
 __inline void
-curve25519_sub(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_sub(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t c;
 	out[0] = twoP0     + a[0] - b[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = twoP13579 + a[1] - b[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -558,7 +558,7 @@ curve25519_sub(bignum25519 out, const bignum25519 a, const bignum25519 b) {
 
 /* out = a - b, where a is the result of a basic op (add,sub) */
 __inline void
-curve25519_sub_after_basic(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_sub_after_basic(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t c;
 	out[0] = fourP0     + a[0] - b[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = fourP13579 + a[1] - b[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -574,7 +574,7 @@ curve25519_sub_after_basic(bignum25519 out, const bignum25519 a, const bignum255
 }
 
 __inline void
-curve25519_sub_reduce(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_sub_reduce(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t c;
 	out[0] = fourP0     + a[0] - b[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = fourP13579 + a[1] - b[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -591,7 +591,7 @@ curve25519_sub_reduce(bignum25519 out, const bignum25519 a, const bignum25519 b)
 
 /* out = -a */
 __inline void
-curve25519_neg(bignum25519 out, const bignum25519 a) {
+curve25519_neg(__private bignum25519 out, __private const bignum25519 a) {
 	uint32_t c;
 	out[0] = twoP0     - a[0]    ; c = (out[0] >> 26); out[0] &= reduce_mask_26;
 	out[1] = twoP13579 - a[1] + c; c = (out[1] >> 25); out[1] &= reduce_mask_25;
@@ -609,7 +609,7 @@ curve25519_neg(bignum25519 out, const bignum25519 a) {
 /* out = a * b */
 #define curve25519_mul_noinline curve25519_mul
 static void
-curve25519_mul(bignum25519 out, const bignum25519 a, const bignum25519 b) {
+curve25519_mul(__private bignum25519 out, __private const bignum25519 a, __private const bignum25519 b) {
 	uint32_t r0,r1,r2,r3,r4,r5,r6,r7,r8,r9;
 	uint32_t s0,s1,s2,s3,s4,s5,s6,s7,s8,s9;
 	uint64_t m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,c;
@@ -706,7 +706,7 @@ curve25519_mul(bignum25519 out, const bignum25519 a, const bignum25519 b) {
 }
 
 static void
-curve25519_mul_const(bignum25519 out, const bignum25519 a, constant uint32_t *b) {
+curve25519_mul_const(__private bignum25519 out, __private const bignum25519 a, constant uint32_t *b) {
 	uint32_t r0,r1,r2,r3,r4,r5,r6,r7,r8,r9;
 	uint32_t s0,s1,s2,s3,s4,s5,s6,s7,s8,s9;
 	uint64_t m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,c;
@@ -804,7 +804,7 @@ curve25519_mul_const(bignum25519 out, const bignum25519 a, constant uint32_t *b)
 
 /* out = in*in */
 static void
-curve25519_square(bignum25519 out, const bignum25519 in) {
+curve25519_square(__private bignum25519 out, __private const bignum25519 in) {
 	uint32_t r0,r1,r2,r3,r4,r5,r6,r7,r8,r9;
 	uint32_t d6,d7,d8,d9;
 	uint64_t m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,c;
@@ -879,7 +879,7 @@ curve25519_square(bignum25519 out, const bignum25519 in) {
 
 /* out = in ^ (2 * count) */
 static void
-curve25519_square_times(bignum25519 out, const bignum25519 in, int count) {
+curve25519_square_times(__private bignum25519 out, __private const bignum25519 in, int count) {
 	uint32_t r0,r1,r2,r3,r4,r5,r6,r7,r8,r9;
 	uint32_t d6,d7,d8,d9;
 	uint64_t m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,c;
@@ -955,7 +955,7 @@ curve25519_square_times(bignum25519 out, const bignum25519 in, int count) {
 
 /* Take a little-endian, 32-byte number and expand it into polynomial form */
 static void
-curve25519_expand(bignum25519 out, const unsigned char in[32]) {
+curve25519_expand(__private bignum25519 out, const unsigned char in[32]) {
 	uint32_t x0,x1,x2,x3,x4,x5,x6,x7;
 
 #if defined(__ENDIAN_LITTLE__)
@@ -1000,7 +1000,7 @@ curve25519_expand(bignum25519 out, const unsigned char in[32]) {
  * little-endian, 32-byte array
  */
 static void
-curve25519_contract(unsigned char out[32], const bignum25519 in) {
+curve25519_contract(unsigned char out[32], __private const bignum25519 in) {
 	bignum25519 f;
 	curve25519_copy(f, in);
 
@@ -1116,7 +1116,7 @@ curve25519_move_conditional_bytes(uint8_t out[96], constant uint8_t *in, uint32_
 
 /* if (iswap) swap(a, b) */
 __inline void
-curve25519_swap_conditional(bignum25519 a, bignum25519 b, uint32_t iswap) {
+curve25519_swap_conditional(__private bignum25519 a, __private bignum25519 b, uint32_t iswap) {
 	const uint32_t swap = (uint32_t)(-(int32_t)iswap);
 	uint32_t x0,x1,x2,x3,x4,x5,x6,x7,x8,x9;
 
@@ -1138,14 +1138,14 @@ curve25519_swap_conditional(bignum25519 a, bignum25519 b, uint32_t iswap) {
 */
 
 __inline void
-ge25519_p1p1_to_partial(ge25519 *r, const ge25519_p1p1 *p) {
+ge25519_p1p1_to_partial(__private ge25519 *r, __private const ge25519_p1p1 *p) {
 	curve25519_mul(r->x, p->x, p->t);
 	curve25519_mul(r->y, p->y, p->z);
 	curve25519_mul(r->z, p->z, p->t); 
 }
 
 __inline void
-ge25519_p1p1_to_full(ge25519 *r, const ge25519_p1p1 *p) {
+ge25519_p1p1_to_full(__private ge25519 *r, __private const ge25519_p1p1 *p) {
 	curve25519_mul(r->x, p->x, p->t);
 	curve25519_mul(r->y, p->y, p->z);
 	curve25519_mul(r->z, p->z, p->t); 
@@ -1153,7 +1153,7 @@ ge25519_p1p1_to_full(ge25519 *r, const ge25519_p1p1 *p) {
 }
 
 static void
-ge25519_full_to_pniels(ge25519_pniels *p, const ge25519 *r) {
+ge25519_full_to_pniels(__private ge25519_pniels *p, __private const ge25519 *r) {
 	curve25519_sub(p->ysubx, r->y, r->x);
 	curve25519_add(p->xaddy, r->y, r->x);
 	curve25519_copy(p->z, r->z);
@@ -1165,7 +1165,7 @@ ge25519_full_to_pniels(ge25519_pniels *p, const ge25519 *r) {
 */
 
 static void
-ge25519_add_p1p1(ge25519_p1p1 *r, const ge25519 *p, const ge25519 *q) {
+ge25519_add_p1p1(__private ge25519_p1p1 *r, __private const ge25519 *p, __private const ge25519 *q) {
 	bignum25519 a,b,c,d,t,u;
 
 	curve25519_sub(a, p->y, p->x);
@@ -1186,7 +1186,7 @@ ge25519_add_p1p1(ge25519_p1p1 *r, const ge25519 *p, const ge25519 *q) {
 
 
 static void
-ge25519_double_p1p1(ge25519_p1p1 *r, const ge25519 *p) {
+ge25519_double_p1p1(__private ge25519_p1p1 *r, __private const ge25519 *p) {
 	bignum25519 a,b,c;
 
 	curve25519_square(a, p->x);
@@ -1202,67 +1202,28 @@ ge25519_double_p1p1(ge25519_p1p1 *r, const ge25519 *p) {
 }
 
 static void
-ge25519_nielsadd2_p1p1(ge25519_p1p1 *r, const ge25519 *p, const ge25519_niels *q, unsigned char signbit) {
-	const bignum25519 *qb = (const bignum25519 *)q;
-	bignum25519 *rb = (bignum25519 *)r;
-	bignum25519 a,b,c;
-
-	curve25519_sub(a, p->y, p->x);
-	curve25519_add(b, p->y, p->x);
-	curve25519_mul(a, a, qb[signbit]); /* x for +, y for - */
-	curve25519_mul(r->x, b, qb[signbit^1]); /* y for +, x for - */
-	curve25519_add(r->y, r->x, a);
-	curve25519_sub(r->x, r->x, a);
-	curve25519_mul(c, p->t, q->t2d);
-	curve25519_add_reduce(r->t, p->z, p->z);
-	curve25519_copy(r->z, r->t);
-	curve25519_add(rb[2+signbit], rb[2+signbit], c); /* z for +, t for - */
-	curve25519_sub(rb[2+(signbit^1)], rb[2+(signbit^1)], c); /* t for +, z for - */
-}
-
-static void
-ge25519_pnielsadd_p1p1(ge25519_p1p1 *r, const ge25519 *p, const ge25519_pniels *q, unsigned char signbit) {
-	const bignum25519 *qb = (const bignum25519 *)q;
-	bignum25519 *rb = (bignum25519 *)r;
-	bignum25519 a,b,c;
-
-	curve25519_sub(a, p->y, p->x);
-	curve25519_add(b, p->y, p->x);
-	curve25519_mul(a, a, qb[signbit]); /* ysubx for +, xaddy for - */
-	curve25519_mul(r->x, b, qb[signbit^1]); /* xaddy for +, ysubx for - */
-	curve25519_add(r->y, r->x, a);
-	curve25519_sub(r->x, r->x, a);
-	curve25519_mul(c, p->t, q->t2d);
-	curve25519_mul(r->t, p->z, q->z);
-	curve25519_add_reduce(r->t, r->t, r->t);
-	curve25519_copy(r->z, r->t);
-	curve25519_add(rb[2+signbit], rb[2+signbit], c); /* z for +, t for - */
-	curve25519_sub(rb[2+(signbit^1)], rb[2+(signbit^1)], c); /* t for +, z for - */
-}
-
-static void
-ge25519_double_partial(ge25519 *r, const ge25519 *p) {
+ge25519_double_partial(__private ge25519 *r, __private const ge25519 *p) {
 	ge25519_p1p1 t;
 	ge25519_double_p1p1(&t, p);
 	ge25519_p1p1_to_partial(r, &t);
 }
 
 static void
-ge25519_double(ge25519 *r, const ge25519 *p) {
+ge25519_double(__private ge25519 *r, __private const ge25519 *p) {
 	ge25519_p1p1 t;
 	ge25519_double_p1p1(&t, p);
 	ge25519_p1p1_to_full(r, &t);
 }
 
 static void
-ge25519_add(ge25519 *r, const ge25519 *p,  const ge25519 *q) {
+ge25519_add(__private ge25519 *r, __private const ge25519 *p, __private const ge25519 *q) {
 	ge25519_p1p1 t;
 	ge25519_add_p1p1(&t, p, q);
 	ge25519_p1p1_to_full(r, &t);
 }
 
 static void
-ge25519_nielsadd2(ge25519 *r, const ge25519_niels *q) {
+ge25519_nielsadd2(__private ge25519 *r, __private const ge25519_niels *q) {
 	bignum25519 a,b,c,e,f,g,h;
 
 	curve25519_sub(a, r->y, r->x);
@@ -1282,7 +1243,7 @@ ge25519_nielsadd2(ge25519 *r, const ge25519_niels *q) {
 }
 
 static void
-ge25519_pnielsadd(ge25519_pniels *r, const ge25519 *p, const ge25519_pniels *q) {
+ge25519_pnielsadd(__private ge25519_pniels *r, __private const ge25519 *p, __private const ge25519_pniels *q) {
 	bignum25519 a,b,c,x,y,z,t;
 
 	curve25519_sub(a, p->y, p->x);
@@ -1311,7 +1272,7 @@ ge25519_pnielsadd(ge25519_pniels *r, const ge25519 *p, const ge25519_pniels *q) 
  * Out: b = 2^250 - 2^0
  */
 static void
-curve25519_pow_two5mtwo0_two250mtwo0(bignum25519 b) {
+curve25519_pow_two5mtwo0_two250mtwo0(__private bignum25519 b) {
 	bignum25519 ALIGN(16) t0,c;
 
 	/* 2^5  - 2^0 */ /* b */
@@ -1335,7 +1296,7 @@ curve25519_pow_two5mtwo0_two250mtwo0(bignum25519 b) {
  * z^(p - 2) = z(2^255 - 21)
  */
 static void
-curve25519_recip(bignum25519 out, const bignum25519 z) {
+curve25519_recip(__private bignum25519 out, __private const bignum25519 z) {
 	bignum25519 ALIGN(16) a,t0,b;
 
 	/* 2 */ curve25519_square_times(a, z, 1); /* a = 2 */
@@ -1353,7 +1314,7 @@ curve25519_recip(bignum25519 out, const bignum25519 z) {
  * z^((p-5)/8) = z^(2^252 - 3)
  */
 static void
-curve25519_pow_two252m3(bignum25519 two252m3, const bignum25519 z) {
+curve25519_pow_two252m3(__private bignum25519 two252m3, __private const bignum25519 z) {
 	bignum25519 ALIGN(16) b,c,t0;
 
 	/* 2 */ curve25519_square_times(c, z, 1); /* c = 2 */
@@ -1373,7 +1334,7 @@ curve25519_pow_two252m3(bignum25519 two252m3, const bignum25519 z) {
 */
 
 static void
-ge25519_pack(unsigned char r[32], const ge25519 *p) {
+ge25519_pack(unsigned char r[32], __private const ge25519 *p) {
 	bignum25519 tx, ty, zi;
 	unsigned char parity[32];
 	curve25519_recip(zi, p->z);
@@ -1396,7 +1357,7 @@ ed25519_verify(const unsigned char *x, const unsigned char *y, size_t len) {
 }
 
 static int
-ge25519_unpack_vartime(ge25519 *r, const unsigned char p[32]) {
+ge25519_unpack_vartime(__private ge25519 *r, const unsigned char p[32]) {
 	const unsigned char zero[32] = {0};
 	const bignum25519 one = {1};
 	unsigned char parity = p[31] >> 7;
@@ -1465,7 +1426,7 @@ ge25519_windowb_equal(uint32_t b, uint32_t c) {
 
 // modified to remove basepoint table argument
 static void
-ge25519_scalarmult_base_choose_niels(ge25519_niels *t, uint32_t pos, signed char b) {
+ge25519_scalarmult_base_choose_niels(__private ge25519_niels *t, uint32_t pos, signed char b) {
 	bignum25519 neg;
 	uint32_t sign = (uint32_t)((unsigned char)b >> 7);
 	uint32_t mask = ~(sign - 1);
@@ -1498,7 +1459,7 @@ ge25519_scalarmult_base_choose_niels(ge25519_niels *t, uint32_t pos, signed char
 // modified to remove basepoint table argument
 // and to work around the missing memset function
 static void
-ge25519_scalarmult_base_niels(ge25519 *r, const bignum256modm s) {
+ge25519_scalarmult_base_niels(__private ge25519 *r, __private const bignum256modm s) {
 	signed char b[64];
 	uint32_t i;
 	ge25519_niels t;
