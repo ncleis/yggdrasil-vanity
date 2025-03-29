@@ -1,6 +1,12 @@
+name: CI
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -18,8 +24,9 @@ jobs:
             target: x86_64-pc-windows-msvc
             suffix: .exe
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
       - run: sudo apt-get install -y ocl-icd-opencl-dev
         if: matrix.os == 'ubuntu-latest'
       - run: |
@@ -29,7 +36,7 @@ jobs:
       - run: cargo build --release --target ${{ matrix.target }}
         env:
           LIB: C:\vcpkg\packages\opencl_x64-windows\lib
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: yggdrasil-vanity-${{ matrix.target }}
-          path: ./target/${{ matrix.target }}/release/yggdrasil-vanity${{ matrix.suffix }}
+          path: target/${{ matrix.target }}/release/yggdrasil-vanity${{ matrix.suffix }}
