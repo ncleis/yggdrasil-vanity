@@ -1,9 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
+          # - os: macos-latest
+          #   target: x86_64-apple-darwin
+          #   suffix: ""
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             suffix: ""
@@ -20,13 +33,9 @@ jobs:
           vcpkg --triplet=x64-windows install opencl
           set LIB=C:\vcpkg\packages\opencl_x64-windows\lib
         if: matrix.os == 'windows-latest'
-      - name: Build
-        run: |
-          # Для Linux экспортируем переменную с нужными флагами
-          export OPENCL_BUILD_FLAGS="-DNVIDIA_DEVICE -cl-fp32-correctly-rounded-divide-sqrt"
-          cargo build --release --target ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }}
         env:
-          LIB: ${{ matrix.os == 'windows-latest' && 'C:\vcpkg\packages\opencl_x64-windows\lib' || '' }}
+          LIB: C:\vcpkg\packages\opencl_x64-windows\lib
       - uses: actions/upload-artifact@v4
         with:
           name: yggdrasil-vanity-${{ matrix.target }}
