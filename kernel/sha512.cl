@@ -156,7 +156,7 @@ static void sha512_hash(ulong *input, const unsigned int length, ulong *hash) {
     for (int block_i = 0; block_i < nBlocks; block_i++) {
         // Инициализация W для текущего блока
         for (int w = 0; w < 16; w++) {
-            W[w] = SWAP(input[w]);
+            W[w] = SWAP(input[w]); // Переводим input в big-endian
         }
         // Расширение W до 80 элементов
         for (int i = 16; i < 80; i++) {
