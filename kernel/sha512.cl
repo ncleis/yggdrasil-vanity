@@ -3,10 +3,11 @@
     Adapted from original code by B. Kerler and C.B
 */
 
-// Убедимся, что макросы определены до использования
+// Удаляем конфликтующие макросы
+#undef rotr64
 #define rotr64(x, n) ((x >> n) | (x << (64 - n)))
 
-// Функции выбора и мажоритарной обработки
+// Явные функции для выбора и мажоритарной логики
 ulong choose(ulong x, ulong y, ulong z) {
     return (x & y) ^ (~x & z);
 }
@@ -19,16 +20,13 @@ ulong bit_maj(ulong x, ulong y, ulong z) {
 #define SWAP(x) ((x >> 56) | ((x >> 40) & 0xFF00) | ((x >> 24) & 0xFF0000) | ((x >> 8) & 0xFF000000) | \
                 ((x << 8) & 0xFF00000000) | ((x << 24) & 0xFF0000000000) | ((x << 40) & 0xFF000000000000) | (x << 56))
 
-// Определения функций вращения и шагов
+// Определения функций вращения
 #define S0(x) (rotr64(x, 28) ^ rotr64(x, 34) ^ rotr64(x, 39))
 #define S1(x) (rotr64(x, 14) ^ rotr64(x, 18) ^ rotr64(x, 41))
 #define little_s0(x) (rotr64(x, 1) ^ rotr64(x, 8) ^ (x >> 7))
 #define little_s1(x) (rotr64(x, 19) ^ rotr64(x, 61) ^ (x >> 6))
 
-// Правильный размер блока SHA-512 (1024 бита = 16 ulong)
-#define HASH_BLOCK_SIZE 16
-
-// Константы паддинга (корректные для 64-битных слов)
+// Константы паддинга (исправлены)
 __constant ulong padLong[8] = {
     0x80UL, 0x8000UL, 0x800000UL, 0x80000000UL,
     0x8000000000UL, 0x800000000000UL, 0x80000000000000UL, 0x8000000000000000UL
@@ -39,7 +37,7 @@ __constant ulong maskLong[8] = {
     0xFFFFFFFFUL, 0xFFFFFFFFFFUL, 0xFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFUL
 };
 
-// Константы SHA-512 (в big-endian)
+// Константы SHA-512 (уже в big-endian)
 __constant ulong k_sha512[80] = {
     SWAP(0x428a2f98d728ae22UL), SWAP(0x7137449123ef65cdUL),
     SWAP(0xb5c0fbcfec4d3b2fUL), SWAP(0xe9b5dba58189dbbcUL),
@@ -83,29 +81,6 @@ __constant ulong k_sha512[80] = {
     SWAP(0x5fcb6fab3ad6faecUL), SWAP(0x6c44198c4a475817UL)
 };
 
-// Функция паддинга
-static int md_pad_128(ulong *msg, ulong msgLen_bytes) {
-    ulong padIndex = msgLen_bytes >> 3; // Делим на 8 (64 бита)
-    ulong overhang = msgLen_bytes & 7; // Остаток от деления на 8
-    
-    // Устанавливаем бит 1 и маскируем
-    msg[padIndex] &= maskLong[overhang];
-    msg[padIndex] |= padLong[overhang];
-    
-    // Заполняем нулями до последних двух 64-битных слов
-    ulong i = padIndex + 1;
-    while ((i % HASH_BLOCK_SIZE) != (HASH_BLOCK_SIZE - 2)) {
-        msg[i++] = 0;
-    }
-    
-    // Добавляем длину в битах (big-endian)
-    ulong length_bits = msgLen_bytes * 8;
-    msg[i++] = SWAP(length_bits >> 64); // Верхние 64 бита
-    msg[i++] = SWAP(length_bits);       // Нижние 64 бита
-    
-    return i / HASH_BLOCK_SIZE;
-}
-
 // Макрос шага обработки
 #define SHA512_STEP(a, b, c, d, e, f, g, h, x, K) \
     h += K + S1(e) + choose(e, f, g) + x; \
@@ -131,11 +106,33 @@ static int md_pad_128(ulong *msg, ulong msgLen_bytes) {
     SHA512_STEP(c, d, e, f, g, h, a, b, W[i+14], k_sha512[i+14]); \
     SHA512_STEP(b, c, d, e, f, g, h, a, W[i+15], k_sha512[i+15]);
 
+// Функция паддинга
+static int md_pad_128(__global ulong *msg, ulong msgLen_bytes) {
+    ulong padIndex = msgLen_bytes / 8;
+    ulong overhang = msgLen_bytes % 8;
+    
+    // Устанавливаем бит 1 и маскируем
+    msg[padIndex] &= maskLong[overhang];
+    msg[padIndex] |= padLong[overhang];
+    
+    // Заполняем нулями до последних двух слов
+    ulong i = padIndex + 1;
+    while ((i % 16) != 14) { // 16 слов в блоке SHA-512
+        msg[i++] = 0;
+    }
+    
+    // Добавляем длину в битах (big-endian)
+    ulong length_bits = msgLen_bytes * 8;
+    msg[i++] = SWAP(length_bits >> 64); // Верхние 64 бита
+    msg[i++] = SWAP(length_bits);       // Нижние 64 бита
+    
+    return i / 16;
+}
+
 // Основная функция хеширования
 static void sha512_hash(__global ulong *input, ulong length, __global ulong *hash) {
     ulong nBlocks = md_pad_128(input, length);
-    
-    // Начальное состояние (уже в big-endian)
+    ulong W[80];
     ulong State[8] = {
         0x6a09e667f3bcc908UL,
         0xbb67ae8584caa73bUL,
@@ -148,19 +145,16 @@ static void sha512_hash(__global ulong *input, ulong length, __global ulong *has
     };
     
     for (ulong block = 0; block < nBlocks; block++) {
-        ulong W[80];
-        
-        // Инициализация первых 16 слов W (big-endian)
+        // Инициализация W (первые 16 слов)
         for (ulong i = 0; i < 16; i++) {
             W[i] = SWAP(input[i]);
         }
-        
         // Расширение W до 80 слов
         for (ulong i = 16; i < 80; i++) {
             W[i] = W[i-16] + little_s0(W[i-15]) + W[i-7] + little_s1(W[i-2]);
         }
         
-        // Переменные раунда
+        // Инициализация переменных раунда
         ulong a = State[0], b = State[1], c = State[2], d = State[3];
         ulong e = State[4], f = State[5], g = State[6], h = State[7];
         
@@ -173,10 +167,10 @@ static void sha512_hash(__global ulong *input, ulong length, __global ulong *has
         State[0] += a; State[1] += b; State[2] += c; State[3] += d;
         State[4] += e; State[5] += f; State[6] += g; State[7] += h;
         
-        input += HASH_BLOCK_SIZE;
+        input += 16;
     }
     
-    // Запись результата в big-endian
+    // Перевод результата в big-endian
     for (ulong i = 0; i < 8; i++) {
         hash[i] = SWAP(State[i]);
     }
