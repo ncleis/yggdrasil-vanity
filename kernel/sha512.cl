@@ -8,32 +8,35 @@
     The moral of the story is always use UL on ulongs!
 */
 
-/// --- Дополнительные inline-функции для NVIDIA --- ///
+/// --- Определение SWAP в зависимости от платформы --- ///
+#ifdef NVIDIA_DEVICE
+  // Для NVIDIA обмен байтами не требуется – устройство little-endian и host совпадают
+  #define SWAP(x) (x)
+#else
+  // Для остальных устройств выполняется обмен байтами (big-endian)
+  inline ulong swap64(ulong x) {
+      return ((x & 0x00000000000000FFUL) << 56) |
+             ((x & 0x000000000000FF00UL) << 40) |
+             ((x & 0x0000000000FF0000UL) << 24) |
+             ((x & 0x00000000FF000000UL) << 8)  |
+             ((x & 0x000000FF00000000UL) >> 8)  |
+             ((x & 0x0000FF0000000000UL) >> 24) |
+             ((x & 0x00FF000000000000UL) >> 40) |
+             ((x & 0xFF00000000000000UL) >> 56);
+  }
+  #define SWAP(x) swap64(x)
+#endif
 
-// Функция циклического сдвига для 64-битового числа
+/// --- Функция циклического сдвига для 64-битового числа --- ///
 inline ulong rotr64_custom(ulong x, uint n) {
     return (x >> n) | (x << (64 - n));
 }
-
-// Функция для обмена байтов (SWAP)
-inline ulong swap64(ulong x) {
-    return ((x & 0x00000000000000FFUL) << 56) |
-           ((x & 0x000000000000FF00UL) << 40) |
-           ((x & 0x0000000000FF0000UL) << 24) |
-           ((x & 0x00000000FF000000UL) << 8)  |
-           ((x & 0x000000FF00000000UL) >> 8)  |
-           ((x & 0x0000FF0000000000UL) >> 24) |
-           ((x & 0x00FF000000000000UL) >> 40) |
-           ((x & 0xFF00000000000000UL) >> 56);
-}
-
-#define SWAP(x) swap64(x)
 #define rotr64(x, n) rotr64_custom(x, (uint)(n))
 
-// bitselect is "if c then b else a" for each bit
-// то есть эквивалентно (c & b) | ((~c) & a)
+// bitselect – "если c, то b, иначе a" для каждого бита,
+// эквивалентно (c & b) | ((~c) & a)
 #define choose(x, y, z) (bitselect(z, y, x))
-// Cleverly determines majority vote, conditioning on x=z
+// Определение функции majority, используя bitselect
 #define bit_maj(x, y, z) (bitselect(x, y, ((x) ^ (z))))
 
 // ==============================================================================
@@ -46,27 +49,32 @@ inline ulong swap64(ulong x) {
 #define little_s1(x) (rotr64(x, 19UL) ^ rotr64(x, 61UL) ^ ((x) >> 6UL))
 
 // ==============================================================================
-// =========  MD - доп. функции для паддинга ===================================
+// =========  MD - функции для паддинга =======================================
 
 #define highBit(i) (0x1UL << (8 * i + 7))
 #define fBytes(i) (0xFFFFFFFFFFFFFFFFUL >> (8 * (8 - i)))
-__constant ulong padLong[8] = {highBit(0), highBit(1), highBit(2),
-                                       highBit(3), highBit(4), highBit(5),
-                                       highBit(6), highBit(7)};
+__constant ulong padLong[8] = { highBit(0), highBit(1), highBit(2),
+                                highBit(3), highBit(4), highBit(5),
+                                highBit(6), highBit(7) };
 __constant ulong maskLong[8] = {
     0,         fBytes(1),
     fBytes(2), fBytes(3), // странное поведение для fBytes(0)
     fBytes(4), fBytes(5),
-    fBytes(6), fBytes(7)};
+    fBytes(6), fBytes(7)
+};
 
 #define bs_long hashBlockSize_long64
-/* Стандартное паддингирование, inplace */
+/* Стандартное паддингирование (inplace):
+   добавляет бит 1, затем нули и в конце 128-битное представление длины */
 static int md_pad_128(ulong *msg, const long msgLen_bytes) {
   const unsigned int padLongIndex = ((unsigned int)msgLen_bytes) / 8;
   const unsigned int overhang = (((unsigned int)msgLen_bytes) - padLongIndex * 8);
+
+  // Применяем маску и добавляем 1 бит
   msg[padLongIndex] &= maskLong[overhang];
   msg[padLongIndex] |= padLong[overhang];
 
+  // Обнуляем следующие ячейки до конца блока
   msg[padLongIndex + 1] = 0;
   msg[padLongIndex + 2] = 0;
   unsigned int i = 0;
@@ -75,8 +83,10 @@ static int md_pad_128(ulong *msg, const long msgLen_bytes) {
   }
 
   int nBlocks = i / bs_long;
+
+  // Добавляем 128-битное представление длины в конце блока
   ulong length_bits = (ulong)msgLen_bytes * 8;
-  ulong length_high = 0; 
+  ulong length_high = 0; // Верхние 64 бита (если msgLen_bytes < 2^61)
   ulong length_low = length_bits;
 
   msg[i - 2] = SWAP(length_high);
@@ -118,7 +128,8 @@ __constant ulong k_sha256[80] = {
     0x0a637dc5a2c898a6UL, 0x113f9804bef90daeUL, 0x1b710b35131c471bUL,
     0x28db77f523047d84UL, 0x32caab7b40c72493UL, 0x3c9ebe0a15c9bebcUL,
     0x431d67c49c100d4cUL, 0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL,
-    0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL};
+    0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL
+};
 
 #define SHA512_STEP(a, b, c, d, e, f, g, h, x, K)        \
   {                                                       \
@@ -147,11 +158,12 @@ __constant ulong k_sha256[80] = {
     SHA512_STEP(b, c, d, e, f, g, h, a, W[i + 15], k_sha256[i + 15]); \
   }
 
-/* Основная функция хеширования */
+/* Основная функция хеширования SHA-512 */
 static void sha512_hash(ulong *input, const unsigned int length, ulong *hash) {
   const unsigned int nBlocks = md_pad_128(input, (const long)length);
   ulong W[0x50] = {0};
   ulong State[8] = {0};
+
   State[0] = 0x6a09e667f3bcc908UL;
   State[1] = 0xbb67ae8584caa73bUL;
   State[2] = 0x3c6ef372fe94f82bUL;
@@ -218,8 +230,10 @@ static void sha512_hash(ulong *input, const unsigned int length, ulong *hash) {
   hash[5] = SWAP(State[5]);
   hash[6] = SWAP(State[6]);
   hash[7] = SWAP(State[7]);
-}
   
+  return;
+}
+
 #undef bit_maj
 #undef choose
 #undef S0
