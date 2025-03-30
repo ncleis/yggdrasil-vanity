@@ -154,9 +154,11 @@ static void sha512_hash(ulong *input, const unsigned int length, ulong *hash) {
     };
     
     for (int block_i = 0; block_i < nBlocks; block_i++) {
+        // Инициализация W для текущего блока
         for (int w = 0; w < 16; w++) {
             W[w] = SWAP(input[w]);
         }
+        // Расширение W до 80 элементов
         for (int i = 16; i < 80; i++) {
             ulong s0 = little_s0(W[i-15]);
             ulong s1 = little_s1(W[i-2]);
@@ -166,22 +168,25 @@ static void sha512_hash(ulong *input, const unsigned int length, ulong *hash) {
         ulong a = State[0], b = State[1], c = State[2], d = State[3];
         ulong e = State[4], f = State[5], g = State[6], h = State[7];
         
+        // Обработка раундов
         for (int i = 0; i < 80; i += 16) {
             ROUND_STEP(i);
         }
         
+        // Обновление состояния
         State[0] += a; State[1] += b; State[2] += c; State[3] += d;
         State[4] += e; State[5] += f; State[6] += g; State[7] += h;
         
         input += hashBlockSize_long64;
     }
     
-    hash[0] = State[0];
-    hash[1] = State[1];
-    hash[2] = State[2];
-    hash[3] = State[3];
-    hash[4] = State[4];
-    hash[5] = State[5];
-    hash[6] = State[6];
-    hash[7] = State[7];
+    // Перевод результата в big-endian
+    hash[0] = SWAP(State[0]);
+    hash[1] = SWAP(State[1]);
+    hash[2] = SWAP(State[2]);
+    hash[3] = SWAP(State[3]);
+    hash[4] = SWAP(State[4]);
+    hash[5] = SWAP(State[5]);
+    hash[6] = SWAP(State[6]);
+    hash[7] = SWAP(State[7]);
 }
